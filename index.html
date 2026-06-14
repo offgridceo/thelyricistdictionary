@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Lyricist Dictionary</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-zinc-950 text-zinc-100 min-h-screen font-sans">
+
+    <div class="max-w-4xl mx-auto px-4 py-12">
+        <header class="text-center mb-12">
+            <h1 class="text-4xl font-black tracking-wider uppercase text-amber-500">The Lyricist Dictionary</h1>
+            <p class="text-zinc-400 mt-2">Rhymes, slant rhymes, and definitions in one place.</p>
+        </header>
+
+        <div class="flex gap-2 max-w-xl mx-auto mb-12">
+            <input type="text" id="wordInput" placeholder="Enter a word..." 
+                   class="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-amber-500">
+            <button onclick="searchWord()" 
+                    class="bg-amber-500 hover:bg-amber-600 text-zinc-950 font-bold px-6 py-3 rounded-lg transition duration-200">
+                Search
+            </button>
+        </div>
+
+        <section id="dictionarySection" class="hidden bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-8">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <h2 id="displayWord" class="text-3xl font-bold text-white capitalize">Word</h2>
+                    <p id="phonetic" class="text-amber-400 font-mono mt-1">/pronunciation/</p>
+                </div>
+            </div>
+            <div class="border-t border-zinc-800 pt-4">
+                <p class="text-zinc-400 text-sm uppercase tracking-wider font-bold">Definition</p>
+                <p id="definition" class="text-zinc-200 mt-1">Definition text goes here.</p>
+                <p id="example" class="text-zinc-500 italic mt-2">"Example sentence goes here."</p>
+            </div>
+        </section>
+
+        <section id="rhymeSection" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+                <h3 class="text-xl font-bold text-emerald-400 mb-4 flex items-center gap-2">
+                    <span>Perfect Rhymes</span>
+                </h3>
+                <div id="perfectRhymes" class="flex flex-wrap gap-2 text-zinc-300">
+                    </div>
+            </div>
+
+            <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+                <h3 class="text-xl font-bold text-sky-400 mb-4 flex items-center gap-2">
+                    <span>Near & Slant Rhymes</span>
+                </h3>
+                <div id="nearRhymes" class="flex flex-wrap gap-2 text-zinc-300">
+                    </div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        async function searchWord() {
+            const word = document.getElementById('wordInput').value.trim().toLowerCase();
+            if (!word) return;
+
+            // Clear previous results
+            document.getElementById('perfectRhymes').innerHTML = 'Searching...';
+            document.getElementById('nearRhymes').innerHTML = 'Searching...';
+
+            // Show sections
+            document.getElementById('dictionarySection').classList.remove('hidden');
+            document.getElementById('rhymeSection').classList.remove('hidden');
+
+            // 1. Fetch Dictionary Data
+            try {
+                const dictResponse = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
+                const dictData = await dictResponse.json();
+                
+                if (dictData.title === "No Definitions Found") {
+                    document.getElementById('displayWord').innerText = word;
+                    document.getElementById('phonetic').innerText = "";
+                    document.getElementById('definition').innerText = "No official definition found, but checking rhymes...";
+                    document.getElementById('example').innerText = "";
+                } else {
+                    const entry = dictData[0];
+                    const meaning = entry.meanings[0]?.definitions[0];
+                    
+                    document.getElementById('displayWord').innerText = entry.word;
+                    document.getElementById('phonetic').innerText = entry.phonetic || entry.phonetics[0]?.text || "";
+                    document.getElementById('definition').innerText = meaning?.definition || "No definition available.";
+                    document.getElementById('example').innerText = meaning?.example ? `"${meaning.example}"` : "";
+                }
+            } catch (err) {
+                console.error("Dictionary error:", err);
+            }
+
+            // 2. Fetch Perfect Rhymes (rel_rhy)
+            try {
+                const pRhymeResponse = await fetch(`https://api.datamuse.com/words?rel_rhy=${word}&max=30`);
+                const pRhymeData = await pRhymeResponse.json();
+                displayRhymes(pRhymeData, 'perfectRhymes', 'bg-emerald-950/40 text-emerald-300 border border-emerald-800/50');
+            } catch (err) {
+                document.getElementById('perfectRhymes').innerText = "Error loading rhymes.";
+            }
+
+            // 3. Fetch Near/Slant Rhymes (rel_nry)
+            try {
+                const nRhymeResponse = await fetch(`https://api.datamuse.com/words?rel_nry=${word}&max=30`);
+                const nRhymeData = await nRhymeResponse.json();
+                displayRhymes(nRhymeData, 'nearRhymes', 'bg-sky-950/40 text-sky-300 border border-sky-800/50');
+            } catch (err) {
+                document.getElementById('nearRhymes').innerText = "Error loading near rhymes.";
+            }
+        }
+
+        function displayRhymes(data, elementId, stylingClasses) {
+            const container = document.getElementById(elementId);
+            container.innerHTML = '';
+
+            if (data.length === 0) {
+                container.innerHTML = '<span class="text-zinc-500 italic text-sm">No results found.</span>';
+                return;
+            }
+
+            data.forEach(item => {
+                const tag = document.createElement('span');
+                tag.className = `px-3 py-1 rounded-md text-sm font-medium cursor-pointer hover:bg-zinc-800 transition ${stylingClasses}`;
+                tag.innerText = item.word;
+                // Clicking a rhyme word automatically searches for it next
+                tag.onclick = () => {
+                    document.getElementById('wordInput').value = item.word;
+                    searchWord();
+                };
+                container.appendChild(tag);
+            });
+        }
+
+        // Allow pressing "Enter" key to search
+        document.getElementById('wordInput').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                searchWord();
+            }
+        });
+    </script>
+</body>
+</html>
