@@ -3,22 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Lyricist Dictionary</title>
+    <title>The Lyricist Dictionary - WebGPU AI Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-zinc-950 text-zinc-100 min-h-screen font-sans">
 
-    <div class="max-w-5xl mx-auto px-4 py-12">
+    <div class="max-w-6xl mx-auto px-4 py-12">
         <header class="text-center mb-12">
             <h1 class="text-4xl font-black tracking-wider uppercase text-amber-500">The Lyricist Dictionary</h1>
-            <p class="text-zinc-400 mt-2">Deep contextual definitions, multi-use slang, and advanced rhyme mapping.</p>
+            <p class="text-zinc-400 mt-2">Powered by Local WebGPU AI. Serverless, private, and zero API keys.</p>
         </header>
 
+        <div id="statusBox" class="max-w-xl mx-auto mb-8 bg-zinc-900 border border-zinc-800 rounded-xl p-4 text-center">
+            <p id="statusText" class="text-amber-400 font-medium text-sm">Initializing AI engine libraries...</p>
+            <div class="w-full bg-zinc-950 rounded-full h-2.5 mt-3 overflow-hidden border border-zinc-800/60">
+                <div id="progressBar" class="bg-amber-500 h-2.5 w-0 transition-all duration-300"></div>
+            </div>
+            <p class="text-[10px] text-zinc-500 mt-2">First load downloads ~350MB directly into your browser's secure cache. Subsequent visits are instant.</p>
+        </div>
+
         <div class="flex gap-2 max-w-xl mx-auto mb-12">
-            <input type="text" id="wordInput" placeholder="Enter a word (e.g., whitewash, paint, brick)..." 
-                   class="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-amber-500">
-            <button onclick="searchWord()" 
-                    class="bg-amber-500 hover:bg-amber-600 text-zinc-950 font-bold px-6 py-3 rounded-lg transition duration-200">
+            <input type="text" id="wordInput" placeholder="Enter a slang term or word (e.g., brick, paint)..." disabled
+                   class="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-amber-500 disabled:opacity-50">
+            <button id="searchButton" onclick="searchWord()" disabled
+                    class="bg-amber-500 hover:bg-amber-600 disabled:bg-zinc-800 text-zinc-950 disabled:text-zinc-600 font-bold px-6 py-3 rounded-lg transition duration-200">
                 Search
             </button>
         </div>
@@ -26,27 +34,26 @@
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
             <div class="lg:col-span-2 space-y-6">
-                <section id="dictionarySection" class="hidden bg-zinc-900 border border-zinc-800 rounded-xl p-6">
-                    <div class="flex justify-between items-baseline mb-6 border-b border-zinc-800 pb-4">
-                        <div>
-                            <h2 id="displayWord" class="text-4xl font-black text-white capitalize tracking-wide">Word</h2>
-                            <p id="phonetic" class="text-amber-400 font-mono mt-1 text-sm">/pronunciation/</p>
-                        </div>
+                <section id="aiSection" class="hidden bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+                    <div class="border-b border-zinc-800 pb-4 mb-4">
+                        <h2 class="text-xs uppercase tracking-widest font-black text-amber-500 flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            Local AI Cultural breakdown
+                        </h2>
                     </div>
-                    
-                    <div id="definitionsContainer" class="space-y-6"></div>
+                    <div id="aiOutput" class="text-zinc-200 text-base leading-relaxed whitespace-pre-wrap font-sans"></div>
                 </section>
             </div>
 
             <div class="space-y-6">
                 <section id="rhymeSection" class="hidden space-y-6">
                     <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
-                        <h3 class="text-lg font-bold text-emerald-400 mb-3 uppercase tracking-wider text-xs">Perfect Rhymes</h3>
+                        <h3 class="text-xs font-bold text-emerald-400 mb-3 uppercase tracking-wider">Perfect Rhymes</h3>
                         <div id="perfectRhymes" class="flex flex-wrap gap-2 text-zinc-300"></div>
                     </div>
 
                     <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
-                        <h3 class="text-lg font-bold text-sky-400 mb-3 uppercase tracking-wider text-xs">Near & Slant Rhymes</h3>
+                        <h3 class="text-xs font-bold text-sky-400 mb-3 uppercase tracking-wider">Near & Slant Rhymes</h3>
                         <div id="nearRhymes" class="flex flex-wrap gap-2 text-zinc-300"></div>
                     </div>
                 </section>
@@ -55,132 +62,152 @@
         </div>
     </div>
 
-    <script>
-        async function searchWord() {
-            const word = document.getElementById('wordInput').value.trim().toLowerCase();
-            if (!word) return;
+    <script type="module">
+        import { pipeline } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.1/dist/transformers.min.js';
 
-            // UI Reset
-            document.getElementById('definitionsContainer').innerHTML = '<p class="text-zinc-500 dynamic-pulse">Digging up contexts and usage...</p>';
-            document.getElementById('perfectRhymes').innerHTML = 'Loading...';
-            document.getElementById('nearRhymes').innerHTML = 'Loading...';
+        let generator = null;
 
-            document.getElementById('dictionarySection').classList.remove('hidden');
-            document.getElementById('rhymeSection').classList.remove('hidden');
+        // Automatically initialize the model when the web page mounts
+        async function initAI() {
+            const statusText = document.getElementById('statusText');
+            const progressBar = document.getElementById('progressBar');
+            const wordInput = document.getElementById('wordInput');
+            const searchButton = document.getElementById('searchButton');
 
-            // 1. Fetch Extensive Contextual Dictionary Data
             try {
-                const dictResponse = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
-                const dictData = await dictResponse.json();
+                statusText.innerText = "Downloading Local AI Model (~350MB)...";
                 
-                const container = document.getElementById('definitionsContainer');
-                container.innerHTML = ''; // Clear loading state
+                // Allocate text generation pipeline targeting WebGPU with 4-bit quantization for performance
+                generator = await pipeline('text-generation', 'onnx-community/Qwen2.5-0.5B-Instruct', {
+                    device: 'webgpu',
+                    dtype: 'q4',
+                    progress_callback: (data) => {
+                        if (data.status === 'progress') {
+                            progressBar.style.width = `${data.progress.toFixed(1)}%`;
+                            statusText.innerText = `Downloading model data: ${data.progress.toFixed(0)}%`;
+                        }
+                    }
+                });
 
-                if (dictData.title === "No Definitions Found" || !Array.isArray(dictData)) {
-                    container.innerHTML = `
-                        <div class="text-zinc-400">
-                            <p class="font-bold text-amber-500">No traditional dictionary definition found.</p>
-                            <p class="text-sm mt-1">This might be strict modern slang, but you can still use the phonetic rhyme engine on the right.</p>
-                        </div>`;
-                    document.getElementById('displayWord').innerText = word;
-                    document.getElementById('phonetic').innerText = "";
-                } else {
-                    // Set primary headers
-                    const topEntry = dictData[0];
-                    document.getElementById('displayWord').innerText = topEntry.word;
-                    document.getElementById('phonetic').innerText = topEntry.phonetic || topEntry.phonetics.find(p => p.text)?.text || "";
+                // Clear initialization box out of view when complete
+                statusText.innerText = "AI Engine Loaded Successfully!";
+                progressBar.style.width = '100%';
+                setTimeout(() => {
+                    document.getElementById('statusBox').classList.add('hidden');
+                }, 1500);
 
-                    // Loop through ALL dictionary entries and ALL parts of speech to map deep variations
-                    let definitionCount = 0;
+                // Enable Search UI elements
+                wordInput.disabled = false;
+                searchButton.disabled = false;
+                wordInput.placeholder = "Enter a word...";
 
-                    dictData.forEach((entry) => {
-                        entry.meanings.forEach((meaning) => {
-                            const partOfSpeech = meaning.partOfSpeech; // noun, verb, adjective, etc.
-
-                            meaning.definitions.forEach((def) => {
-                                definitionCount++;
-                                
-                                // Create a visual block for each distinct variation/context found
-                                const block = document.createElement('div');
-                                block.className = "bg-zinc-950/50 border border-zinc-800/60 rounded-lg p-4 space-y-2";
-
-                                // Context Tag (e.g., "[noun] context")
-                                const tag = document.createElement('span');
-                                tag.className = "inline-block text-[10px] uppercase tracking-widest font-extrabold bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded";
-                                tag.innerText = partOfSpeech;
-                                block.appendChild(tag);
-
-                                // The Definition Text
-                                const defText = document.createElement('p');
-                                defText.className = "text-zinc-200 text-base leading-relaxed";
-                                defText.innerText = def.definition;
-                                block.appendChild(defText);
-
-                                // Example Sentence (if the API provides it)
-                                if (def.example) {
-                                    const exText = document.createElement('p');
-                                    exText.className = "text-amber-500/70 italic text-sm pl-3 border-l border-amber-500/30 mt-1";
-                                    exText.innerText = `"${def.example}"`;
-                                    block.appendChild(exText);
-                                }
-
-                                container.appendChild(block);
-                            });
-                        });
+            } catch (error) {
+                console.error("WebGPU execution failed, falling back to CPU execution framework.", error);
+                statusText.innerText = "WebGPU failed. Attempting standard fallback loading (Slower)...";
+                
+                // Fallback instantiation to standard WASM execution if the hardware lacks a modern GPU or WebGPU configurations
+                try {
+                    generator = await pipeline('text-generation', 'onnx-community/Qwen2.5-0.5B-Instruct', {
+                        dtype: 'q4',
+                        device: 'wasm'
                     });
+                    document.getElementById('statusBox').classList.add('hidden');
+                    wordInput.disabled = false;
+                    searchButton.disabled = false;
+                } catch (fail) {
+                    statusText.innerText = "Hardware compatibility error: Browser or machine does not support internal execution models.";
+                    statusText.className = "text-red-400 font-bold text-sm";
                 }
-            } catch (err) {
-                console.error("Dictionary engine failure:", err);
-                document.getElementById('definitionsContainer').innerHTML = '<p class="text-red-400 text-sm">Failed to retrieve semantic data.</p>';
             }
+        }
 
-            // 2. Fetch Perfect Rhymes
-            try {
-                const pRhymeResponse = await fetch(`https://api.datamuse.com/words?rel_rhy=${word}&max=40`);
-                const pRhymeData = await pRhymeResponse.json();
-                displayRhymes(pRhymeData, 'perfectRhymes', 'bg-emerald-950/30 text-emerald-300 border border-emerald-800/40 hover:bg-emerald-900/40');
-            } catch (err) {
-                document.getElementById('perfectRhymes').innerText = "Unavailable.";
-            }
+        // Expose search functionality globally
+        window.searchWord = async function() {
+            const wordInput = document.getElementById('wordInput');
+            const word = wordInput.value.trim().toLowerCase();
+            if (!word || !generator) return;
 
-            // 3. Fetch Near/Slant Rhymes
+            // UI Adjustments
+            document.getElementById('aiSection').classList.remove('hidden');
+            document.getElementById('rhymeSection').classList.remove('hidden');
+            document.getElementById('aiOutput').innerText = "AI processing language contexts locally...";
+            document.getElementById('perfectRhymes').innerHTML = 'Mapping...';
+            document.getElementById('nearRhymes').innerHTML = 'Mapping...';
+
+            // 1. Run Core Phonetic API Queries
+            fetchRhymes(word);
+
+            // 2. Build Structured Context Prompts for Local AI Model
+            const messages = [
+                { 
+                    role: "system", 
+                    content: "You are an expert hip-hop, urban dictionary, and cultural slang expert. Your only purpose is to break down the deep meanings, hidden metaphors, double-entendres, and street contexts of the requested word. Provide clear bullet points containing: 1) Literal definitions. 2) Hip-Hop/Street contexts or alternate slang meanings. 3) A realistic example of how it is used inside a rap bar or conversation. IMPORTANT: You are explicitly forbidden from writing any rhymes, generating original hooks, or constructing rhyme schemes for the user. Do not write bars. Only provide structural definition and linguistic breakdown." 
+                },
+                { 
+                    role: "user", 
+                    content: `Analyze the word: "${word}"` 
+                }
+            ];
+
             try {
-                const nRhymeResponse = await fetch(`https://api.datamuse.com/words?rel_nry=${word}&max=40`);
-                const nRhymeData = await nRhymeResponse.json();
-                displayRhymes(nRhymeData, 'nearRhymes', 'bg-sky-950/30 text-sky-300 border border-sky-800/40 hover:bg-sky-900/40');
+                // Execute Local AI Computation inside the browser thread
+                const output = await generator(messages, { 
+                    max_new_tokens: 256,
+                    temperature: 0.4
+                });
+                
+                // Extract and cleanly format the string response from the text stream pipeline
+                const fullResponse = output[0].generated_text.at(-1).content;
+                document.getElementById('aiOutput').innerText = fullResponse;
+
             } catch (err) {
-                document.getElementById('nearRhymes').innerText = "Unavailable.";
+                console.error("Inference execution interrupted:", err);
+                document.getElementById('aiOutput').innerText = "Error completing local text generation matrix.";
             }
+        }
+
+        async function fetchRhymes(word) {
+            try {
+                const pResponse = await fetch(`https://api.datamuse.com/words?rel_rhy=${word}&max=35`);
+                const pData = await pResponse.json();
+                displayRhymes(pData, 'perfectRhymes', 'bg-emerald-950/30 text-emerald-300 border border-emerald-800/40 hover:bg-emerald-900/40');
+            } catch(e) { document.getElementById('perfectRhymes').innerText = "Unavailable."; }
+
+            try {
+                const nResponse = await fetch(`https://api.datamuse.com/words?rel_nry=${word}&max=35`);
+                const nData = await nResponse.json();
+                displayRhymes(nData, 'nearRhymes', 'bg-sky-950/30 text-sky-300 border border-sky-800/40 hover:bg-sky-900/40');
+            } catch(e) { document.getElementById('nearRhymes').innerText = "Unavailable."; }
         }
 
         function displayRhymes(data, elementId, stylingClasses) {
             const container = document.getElementById(elementId);
             container.innerHTML = '';
-
             if (data.length === 0) {
-                container.innerHTML = '<span class="text-zinc-600 italic text-xs">No matching phonetics found.</span>';
+                container.innerHTML = '<span class="text-zinc-600 italic text-xs">None found.</span>';
                 return;
             }
-
             data.forEach(item => {
                 const tag = document.createElement('span');
                 tag.className = `px-2.5 py-1 rounded text-xs font-semibold cursor-pointer transition ${stylingClasses}`;
                 tag.innerText = item.word;
-                
                 tag.onclick = () => {
                     document.getElementById('wordInput').value = item.word;
-                    searchWord();
+                    window.searchWord();
                 };
                 container.appendChild(tag);
             });
         }
 
-        // Enter key shortcut execution
+        // Hotkey integration for seamless "Enter" searches
         document.getElementById('wordInput').addEventListener('keypress', function (e) {
             if (e.key === 'Enter') {
-                searchWord();
+                window.searchWord();
             }
         });
+
+        // Trigger loading system when page loads
+        initAI();
     </script>
 </body>
 </html>
