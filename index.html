@@ -4,20 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>The Lyricist Dictionary - Secure Cloud Edition</title>
+    <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-zinc-950 text-zinc-100 min-h-screen font-sans">
 
     <div class="max-w-6xl mx-auto px-4 py-12">
+        <!-- Header -->
         <header class="text-center mb-12 relative">
             <h1 class="text-4xl font-black tracking-wider uppercase text-amber-500">The Lyricist Dictionary</h1>
             <p class="text-zinc-400 mt-2">Instant Cloud AI Slang Dissection & Advanced Rhyme Engine</p>
             
+            <!-- Secure Key Management UI Toggle -->
             <button onclick="toggleSettings()" class="absolute top-0 right-0 bg-zinc-900 border border-zinc-800 text-zinc-400 text-xs px-3 py-1.5 rounded-lg hover:text-white transition">
                 ⚙️ Setup Key
             </button>
         </header>
 
+        <!-- Hidden Local Storage API Key Input Panel -->
         <div id="settingsPanel" class="hidden max-w-xl mx-auto mb-8 bg-zinc-900 border border-amber-500/30 rounded-xl p-5">
             <h3 class="text-sm font-bold uppercase tracking-wider text-amber-500 mb-2">Secure API Configuration</h3>
             <p class="text-xs text-zinc-400 mb-4">Paste your free Gemini key below. It saves strictly inside your own device browser data—never uploaded to GitHub.</p>
@@ -31,6 +35,7 @@
             <p id="keyStatusText" class="text-[11px] text-emerald-400 mt-2 hidden">✓ Key stored securely in local browser data.</p>
         </div>
 
+        <!-- Search Workspace Input -->
         <div class="flex gap-2 max-w-xl mx-auto mb-12">
             <input type="text" id="wordInput" placeholder="Enter a word (e.g., brick, whitewash)..." 
                    class="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-amber-500">
@@ -39,20 +44,23 @@
             </button>
         </div>
 
+        <!-- Main Display Columns -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
+            <!-- LEFT & CENTER: Cloud AI Slang Outputs -->
             <div class="lg:col-span-2 space-y-6">
                 <section id="aiSection" class="hidden bg-zinc-900 border border-zinc-800 rounded-xl p-6">
                     <div class="border-b border-zinc-800 pb-4 mb-4">
                         <h2 class="text-xs uppercase tracking-widest font-black text-amber-500 flex items-center gap-2">
                             <span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
-                            Contextual Slang Breakdown
+                            Dictionary & Cultural Breakdown
                         </h2>
                     </div>
-                    <div id="aiOutput" class="text-zinc-200 text-base leading-relaxed whitespace-pre-wrap font-sans"></div>
+                    <div id="aiOutput" class="text-zinc-200 text-base leading-relaxed whitespace-pre-wrap font-sans space-y-4"></div>
                 </section>
             </div>
 
+            <!-- RIGHT: Instant Rhyme Outputs -->
             <div class="space-y-6">
                 <section id="rhymeSection" class="hidden space-y-6">
                     <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
@@ -70,22 +78,21 @@
         </div>
     </div>
 
+    <!-- Application Script Engine -->
     <script>
-        // Check for pre-existing configured keys on boot load
         document.addEventListener("DOMContentLoaded", () => {
             const savedKey = localStorage.getItem("lyricist_gemini_key");
             if (savedKey) {
                 document.getElementById("apiKeyInput").value = savedKey;
                 document.getElementById("keyStatusText").classList.remove("hidden");
             } else {
-                // Force reveal settings panel if user hasn't set a key yet
                 document.getElementById("settingsPanel").classList.remove("hidden");
             }
         });
 
         function toggleSettings() {
             const panel = document.getElementById("settingsPanel");
-            panel.classList.toggle("hidden");
+            panel.toggle("hidden");
         }
 
         function saveApiKey() {
@@ -107,29 +114,59 @@
                 return;
             }
 
-            // Interface Visibility Resets
             document.getElementById('aiSection').classList.remove('hidden');
             document.getElementById('rhymeSection').classList.remove('hidden');
-            document.getElementById('aiOutput').innerText = "Querying global linguistic data systems...";
+            document.getElementById('aiOutput').innerText = "Running live database indexing and scraping real-world lyrics...";
             document.getElementById('perfectRhymes').innerHTML = 'Mapping...';
             document.getElementById('nearRhymes').innerHTML = 'Mapping...';
 
-            // 1. Fire Off Immediate Local Rhyme Computations
+            // Run rhymes instantly via Datamuse API (RhymeZone data source)
             runPhoneticEngine(word);
 
-            // 2. Query Cloud Gemini API Directly over REST Pipeline
-            const systemInstruction = "You are a dual-model linguistic engine: an authoritative traditional lexicographer combined with a brilliant, casual hip-hop culture expert and studio partner. Keep your language clean, punchy, and direct, avoiding robotic or overly academic filler text. You must format every single response exactly like this, using these exact bold headers, brackets, and clean line breaks: [Official Definition] Provide the strict, universally accepted literal definition of the word based on standard dictionaries. If the word has multiple core standard definitions (e.g., noun vs. verb uses), list them out clearly. [Pronunciation] Provide the standard phonetic spelling or IPA guide of how the word is properly and officially pronounced. [Casual Dialogue Example] Write a realistic, everyday casual conversation between friends demonstrating how the word is used in a regular context. This dialogue must be substantial, spanning a minimum of 3 to 5 full sentences total. Do not use rap lyrics here keep it to natural, everyday conversational speech. [Vibe Check] Transition into cultural context. Provide a 1-2 sentence quick, street-level summary of what this word represents in modern hip-hop culture, its specific connotations, and its regional or stylistic associations. (e.g., UK drill staple, East Coast classic, modern trap term). [The Breakdown] Provide a clean, bulleted list detailing the specific street slang definitions, hidden double-entendres, or metaphorical applications of the word within the music landscape. [In The Booth] Write a high-quality, realistic 2-bar or 4-bar rap scheme utilizing the word to showcase its rhythmic capabilities, internal cadence, and cultural double-meanings. This scheme serves as a practical reference point to spark inspiration for a writer. Directly underneath the bar, include a 1-sentence analytical note breaking down the rhyme structure or the delivery tric used.";
+            // Refined system prompt explicitly tailored to aggregate real text data and pull real Genius verses
+            const systemInstruction = `You are a strict data-compiler tool for rap lyricists and songwriters. Your job is to act as a unified dashboard for real linguistic sites. Do not create fake text, do not speak like an automated assistant, and do not write fictional rap lyrics.
+
+You must run live web searches across specific domains to aggregate data for the target word and format your response exactly like this:
+
+**[Official Definition]**
+Extract the literal dictionary definitions directly from Merriam-Webster or Oxford Dictionary. List multiple core definitions if it functions as different parts of speech (e.g., noun vs. verb).
+
+**[Pronunciation]**
+Provide the official standard phonetic/IPA spelling as listed in traditional dictionaries.
+
+**[Casual Dialogue Example]**
+Provide a substantial, realistic everyday conversation example showing how the word is spoken in regular life. This must be a minimum of 3 to 5 sentences long.
+
+**[Vibe Check]**
+Provide a 1-2 sentence real world breakdown of the word's cultural weight, what regional scenes or eras it belongs to (e.g., West Coast classic, UK drill staple), and its true context in hip-hop culture.
+
+**[The Breakdown]**
+Go directly to Urban Dictionary data. Gather real regional slang variations and metaphorical applications. Filter out goofy, fake, low-voted, or irrelevant entries. List only legitimate definitions used in urban culture or music vernacular.
+
+**[In The Booth]**
+Search Genius (site:genius.com) to find a real, officially released rap lyric or song verse where this specific word is used by a professional artist. 
+Format it as:
+"[Exact Lyric Quote Lines Here]"
+— Artist Name, "Song Title"
+Directly below the quoted lyric, provide a 1-sentence analytical breakdown explaining the flow cadence, internal rhymes, or wordplay the artist used with that target word. If absolutely no real verse is found on Genius, state "No documented Genius verses found for this specific term." — under no circumstances are you allowed to write a fictional or original bar.`;
             
             try {
-                // Using the latest high-speed Gemini 2.5 Flash architecture over standard native browser fetch endpoints
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+                // Using the updated v1beta /generateContent pipeline with the googleSearch tool explicitly activated
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`, {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: { 
+                        "Content-Type": "application/json",
+                        "x-goog-api-key": apiKey
+                    },
                     body: JSON.stringify({
                         contents: [{ 
                             parts: [{ 
                                 text: `${systemInstruction}\n\nAnalyze the word: "${word}"` 
                             }] 
+                        }],
+                        // Activating the live Google Search grounding engine tool mapping layer
+                        tools: [{
+                            googleSearch: {}
                         }]
                     })
                 });
@@ -138,13 +175,15 @@
                 
                 if (data.candidates && data.candidates[0].content.parts[0].text) {
                     document.getElementById('aiOutput').innerText = data.candidates[0].content.parts[0].text;
+                } else if (data.error) {
+                    document.getElementById('aiOutput').innerText = `API Error: ${data.error.message}\n\nCheck your key configurations.`;
                 } else {
-                    document.getElementById('aiOutput').innerText = "Linguistic response generation error. Check your key constraints.";
+                    document.getElementById('aiOutput').innerText = "Data synthesis error. Please try searching again.";
                 }
 
             } catch (err) {
-                console.error("Cloud processing anomaly:", err);
-                document.getElementById('aiOutput').innerText = "Failed to communicate with cloud AI infrastructure. Verify internet state and key validation.";
+                console.error("Cloud grounding pipeline failure:", err);
+                document.getElementById('aiOutput').innerText = "Failed to communicate with cloud AI grounding networks.";
             }
         }
 
