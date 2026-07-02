@@ -91,14 +91,7 @@
                     <div id="aiOutput" class="text-zinc-200 text-base leading-relaxed whitespace-pre-wrap font-sans space-y-4"></div>
                     
                     <div class="border-t border-zinc-800 pt-6 mt-8 space-y-4">
-                        <div class="bg-zinc-950/40 rounded-lg border border-zinc-800/60 p-3">
-                            <button onclick="toggleSources()" class="w-full flex justify-between items-center text-xs font-bold uppercase tracking-wider text-zinc-400 hover:text-zinc-200 transition">
-                                <span>📁 View Sources Checked</span>
-                                <span id="sourcesArrow">▼</span>
-                            </button>
-                            <div id="sourcesDropdown" class="hidden mt-3 text-xs text-zinc-500 space-y-1 font-mono border-l border-zinc-800 pl-3"></div>
-                        </div>
-
+                        <!-- Street Smart Studio Note Disclaimer -->
                         <p class="text-xs text-zinc-500 italic leading-relaxed">
                             <strong class="text-amber-500/80 not-italic uppercase tracking-wide text-[10px] font-bold block mb-0.5">[Studio Note]</strong>
                             Data is pulled live from public archives. Always do your due diligence and double-check contexts before you record—don't look goofy misusing a word on a track.
@@ -172,7 +165,6 @@
 
     <!-- Script Logic Processing Engine Architecture -->
     <script>
-        // Metronome and Tap Tempo Tracking State variables
         let tapTimes = [];
         let metronomeInterval = null;
         let metronomeBpm = 0;
@@ -187,7 +179,6 @@
             }
             renderSavedDraftsPortfolio();
             
-            // Register keystroke combination intercepts for quick shortcuts (Ctrl + S / Cmd + S)
             window.addEventListener('keydown', (e) => {
                 if ((e.ctrlKey || e.metaKey) && e.key === 's') {
                     e.preventDefault();
@@ -200,12 +191,7 @@
             document.getElementById("settingsPanel").classList.toggle("hidden");
         }
 
-        function toggleSources() {
-            const dropdown = document.getElementById("sourcesDropdown");
-            const arrow = document.getElementById("sourcesArrow");
-            dropdown.classList.toggle("hidden");
-            arrow.innerText = dropdown.classList.contains("hidden") ? "▼" : "▲";
-        }
+        // Keep code clean - sources dropdown layout logic stripped since search grounding is dead
 
         function saveApiKey() {
             const key = document.getElementById("apiKeyInput").value.trim();
@@ -215,7 +201,6 @@
             setTimeout(() => { toggleSettings(); }, 800);
         }
 
-        // Tap Tempo Calculation Module
         function tapTempo() {
             const now = Date.now();
             tapTimes.push(now);
@@ -246,14 +231,13 @@
             }, pulseMs);
         }
 
-        // Syllable Metric Counter Logic Strategy
         function countSyllablesInString(text) {
             let words = text.toLowerCase().replace(/[^a-z ]/g, "").split(" ");
             let total = 0;
             words.forEach(word => {
                 if (!word) return;
                 if (word.length <= 3) { total += 1; return; }
-                word = word.replace(/(?:uo|ia|ua|ea)/g, 'a'); // rough phonetic corrections
+                word = word.replace(/(?:uo|ia|ua|ea)/g, 'a');
                 let count = word.match(/[aeiouy]{1,2}/g);
                 let sc = count ? count.length : 1;
                 if (word.endsWith('e') && !word.endsWith('le')) sc--;
@@ -263,7 +247,6 @@
             return total;
         }
 
-        // Smart Notepad Input Line Processing Matrix & Structural Text Tags
         function processNotepadMetrics() {
             const scratchpad = document.getElementById('studioScratchpad');
             const gutter = document.getElementById('lineSyllableGutter');
@@ -272,7 +255,6 @@
             let gutterHtml = '';
             let modified = false;
 
-            // Mapping list of smart tags/commands included
             const formattingTags = {
                 '/title ': '=== SONG TITLE ===',
                 '/intro ': '--- INTRO ---',
@@ -283,7 +265,6 @@
             };
 
             lines.forEach((line, index) => {
-                // Check command matching patterns
                 for (let tag in formattingTags) {
                     if (line.toLowerCase().startsWith(tag)) {
                         lines[index] = formattingTags[tag];
@@ -305,13 +286,12 @@
             gutter.innerHTML = gutterHtml;
         }
 
-        // Local Storage Draft Saving & Managing System
         function triggerManualDraftSave() {
             const textContent = document.getElementById('studioScratchpad').value.trim();
             if (!textContent) { alert("Cannot commit blank text structures."); return; }
 
             let draftTitle = prompt("Provide structural title name for this song file:", "Untitled Scheme");
-            if (draftTitle === null) return; // User pressed cancel
+            if (draftTitle === null) return;
             draftTitle = draftTitle.trim() || "Untitled Scheme";
 
             let savedDrafts = JSON.parse(localStorage.getItem('lyricist_saved_drafts') || '[]');
@@ -367,7 +347,6 @@
             renderSavedDraftsPortfolio();
         };
 
-        // Main Cloud AI Searching Grounding Pipeline Module
         async function searchWord() {
             const word = document.getElementById('wordInput').value.trim().toLowerCase();
             if (!word) return;
@@ -385,60 +364,59 @@
             document.getElementById('rhymeSection').classList.remove('hidden');
             document.getElementById('syllableMatrixSection').classList.remove('hidden');
             
-            document.getElementById('aiOutput').innerText = "Running live database indexing and scraping real-world lyrics...";
+            document.getElementById('aiOutput').innerText = "Querying foundational linguistic models...";
             document.getElementById('perfectRhymes').innerHTML = 'Mapping...';
             document.getElementById('nearRhymes').innerHTML = 'Mapping...';
-            document.getElementById('sourcesDropdown').innerHTML = '<p class="italic">Analyzing references...</p>';
             document.getElementById('syllableDashboard').innerHTML = '<p class="italic text-zinc-600">Calculating metrical structural values...</p>';
 
             runPhoneticEngine(word);
 
-            const systemInstruction = `You are a strict data-compiler tool for rap lyricists and songwriters. Your job is to act as a unified dashboard for real linguistic sites. Do not create fake text, do not speak like an automated assistant, and do not write fictional rap lyrics.
+            // System prompt rewritten to drop live scraping tools and maximize memory recall + smart fallback bars
+            const systemInstruction = `You are a strict data-compiler tool for rap lyricists and songwriters. Your job is to pull exact definitions, slang knowledge, and verse structures from your massive internal memory training. Do not write generic conversational fluff. Keep explanations casual, sharp, and built for a lyricist's workspace.
             
-Prioritize filtering data structures to match this specific setting/scene: "${activeScene}".
+Prioritize contextual definitions and connotations to match this specific scene: "${activeScene}".
 
-You must run live web searches across specific domains to aggregate data for the target word and format your response exactly like this:
+You must format your response exactly like this, using these exact bold headers, brackets, and clean line breaks:
 
 **[Official Definition]**
-Extract the literal dictionary definitions directly from Merriam-Webster or Oxford Dictionary. List multiple core definitions if it functions as different parts of speech (e.g., noun vs. verb).
+Provide the strict, universally accepted literal definition of the word. List multiple core definitions if it functions as different parts of speech (e.g., noun vs. verb).
 
 **[Pronunciation]**
-Provide the official standard phonetic/IPA spelling as listed in traditional dictionaries.
+Provide the standard phonetic/IPA spelling of how the word is officially pronounced.
 
 **[Casual Dialogue Example]**
 Provide a substantial, realistic everyday conversation example showing how the word is spoken in regular life. This must be a minimum of 3 to 5 sentences long.
 
 **[Vibe Check]**
-Provide a 1-2 sentence real world breakdown of the word's cultural weight, what regional scenes or eras it belongs to (e.g., West Coast classic, UK drill staple), and its true context in hip-hop culture.
+Provide a 1-2 sentence real world breakdown of the word's cultural weight, what regional scenes or eras it belongs to, and its true context in hip-hop culture.
 
 **[The Breakdown]**
-Go directly to Urban Dictionary data. Gather real regional slang variations and metaphorical applications. Filter out goofy, fake, low-voted, or irrelevant entries. List only legitimate definitions used in urban culture or music vernacular.
+List legitimate, documented street slang definitions, hidden double-entendres, or metaphorical applications used in urban culture or music vernacular. Filter out nonsensical or irrelevant entries.
 
 **[Sensory Palette]**
 Provide a clean comma-separated list of 6-8 raw evocative nouns, adjectives, or imagery terms structurally linked with this word across artistic mediums to serve as thematic keyword palettes for a writer.
 
 **[In The Booth]**
-Search Genius (site:genius.com) to find a real, officially released rap lyric or song verse where this specific word is used by a professional artist. 
-Format it as:
+Recall from your memory an officially released, real-world rap lyric or song verse where this specific word is used by a professional artist. 
+Format it exactly as:
 "[Exact Lyric Quote Lines Here]"
 — Artist Name, "Song Title"
-Directly below the quoted lyric, provide a 1-sentence analytical breakdown explaining the flow cadence, internal rhymes, or wordplay the artist used with that target word. If absolutely no real verse is found on Genius, state "No documented Genius verses found for this specific term." — under no circumstances are you allowed to write a fictional or original bar.`;
+Directly below it, provide a 1-sentence analytical breakdown explaining the flow cadence or wordplay the artist used.
+
+CRITICAL HYBRID FALLBACK RULE: If you cannot recall an exact, verified real-world lyric for this word from your memory bank, you must explicitly output this header line:
+"*Note: No documented historical lyrics verified in active recall. Generating studio baseline structure example below.*"
+Then immediately provide a high-quality, realistic original 2-bar or 4-bar scheme of your own to showcase how a writer can pocket the word, along with the 1-sentence cadence breakdown.`;
             
             try {
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent`, {
+                // Using the standard, lightning-fast v1beta endpoint without grounding parameters
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
                     method: "POST",
-                    headers: { 
-                        "Content-Type": "application/json",
-                        "x-goog-api-key": apiKey
-                    },
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         contents: [{ 
                             parts: [{ 
                                 text: `${systemInstruction}\n\nAnalyze the word: "${word}"` 
                             }] 
-                        }],
-                        tools: [{
-                            googleSearch: {}
                         }]
                     })
                 });
@@ -447,28 +425,15 @@ Directly below the quoted lyric, provide a 1-sentence analytical breakdown expla
                 
                 if (data.candidates && data.candidates[0].content.parts[0].text) {
                     document.getElementById('aiOutput').innerText = data.candidates[0].content.parts[0].text;
-                    
-                    // Parse source tracking references cleanly
-                    const sourcesDropdown = document.getElementById('sourcesDropdown');
-                    sourcesDropdown.innerHTML = '';
-                    const chunks = data.candidates[0].groundingMetadata?.groundingChunks;
-                    if (chunks && chunks.length > 0) {
-                        const uniqueTitles = [...new Set(chunks.map(c => c.web?.title || c.web?.uri))].filter(Boolean);
-                        uniqueTitles.forEach((title, index) => {
-                            const item = document.createElement('p');
-                            item.innerText = `[${index + 1}] Verified Source: ${title.replace(/(http|https):\/\//g, '')}`;
-                            sourcesDropdown.appendChild(item);
-                        });
-                    } else {
-                        sourcesDropdown.innerHTML = '<p class="italic text-zinc-600">Core static linguistic database utilized.</p>';
-                    }
                 } else if (data.error) {
                     document.getElementById('aiOutput').innerText = `API Error: ${data.error.message}\n\nCheck your key configurations.`;
+                } else {
+                    document.getElementById('aiOutput').innerText = "Data synthesis error. Please try searching again.";
                 }
 
             } catch (err) {
-                console.error("Cloud grounding pipeline failure:", err);
-                document.getElementById('aiOutput').innerText = "Failed to communicate with cloud AI grounding networks.";
+                console.error("Cloud processing failure:", err);
+                document.getElementById('aiOutput').innerText = "Failed to communicate with cloud AI infrastructure.";
             }
         }
 
@@ -482,14 +447,12 @@ Directly below the quoted lyric, provide a 1-sentence analytical breakdown expla
             } catch(e) { document.getElementById('perfectRhymes').innerText = "Unavailable."; }
 
             try {
-                // Fetch direct syllable data blocks along with match frequencies using the Datamuse phonetic query structure
                 const syllableQueryResponse = await fetch(`https://api.datamuse.com/words?sp=${word}&md=s`);
                 const sqData = await syllableQueryResponse.json();
                 
                 if(sqData.length > 0 && sqData[0].numSyllables) {
                     const wordSyllables = sqData[0].numSyllables;
                     
-                    // Pull structurally matching multisyllabic sound patterns
                     const patternResponse = await fetch(`https://api.datamuse.com/words?rel_nry=${word}&max=20`);
                     const patternData = await patternResponse.json();
                     
