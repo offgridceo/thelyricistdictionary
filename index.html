@@ -42,16 +42,20 @@
             <p id="keyStatusText" class="text-[11px] text-emerald-400 mt-2 hidden">✓ Key stored securely in local browser data.</p>
         </div>
 
-        <!-- Utility Control Bar: Regional Slang & Tap Tempo Metronome -->
+        <!-- Utility Control Bar: Audio Synth Metronome & Regional Slang -->
         <div class="max-w-xl mx-auto mb-6 grid grid-cols-2 gap-4">
-            <!-- Tap Tempo Component -->
+            <!-- Audio Synthesizer Metronome Component -->
             <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-3 flex items-center justify-between">
-                <button onclick="tapTempo()" class="bg-zinc-800 hover:bg-zinc-700 text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded text-zinc-300 transition active:scale-95">
-                    🥁 Tap Tempo
-                </button>
                 <div class="flex items-center gap-2">
-                    <span id="bpmDisplay" class="text-xs font-mono font-bold text-amber-500">--- BPM</span>
-                    <span id="metronomeDot" class="w-2 h-2 rounded-full bg-zinc-700 transition-all duration-700"></span>
+                    <input type="number" id="bpmInput" value="90" min="40" max="250" onchange="updateBpmValue()"
+                           class="w-14 bg-zinc-950 border border-zinc-800 rounded px-2 py-1 text-xs font-mono font-bold text-amber-500 text-center focus:outline-none focus:border-amber-500">
+                    <span class="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">BPM</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span id="metronomeDot" class="w-2 h-2 rounded-full bg-zinc-700 transition-all duration-100"></span>
+                    <button onclick="toggleAudioMetronome()" id="metroPlayBtn" class="bg-zinc-800 hover:bg-zinc-700 text-[11px] font-black uppercase tracking-wider px-3 py-1.5 rounded text-emerald-400 transition">
+                        ▶ Start
+                    </button>
                 </div>
             </div>
             <!-- Regional Dialect Selector Toggle -->
@@ -91,10 +95,9 @@
                     <div id="aiOutput" class="text-zinc-200 text-base leading-relaxed whitespace-pre-wrap font-sans space-y-4"></div>
                     
                     <div class="border-t border-zinc-800 pt-6 mt-8 space-y-4">
-                        <!-- Street Smart Studio Note Disclaimer -->
                         <p class="text-xs text-zinc-500 italic leading-relaxed">
                             <strong class="text-amber-500/80 not-italic uppercase tracking-wide text-[10px] font-bold block mb-0.5">[Studio Note]</strong>
-                            Data is pulled live from public archives. Always do your due diligence and double-check contexts before using a word on a track.
+                            Data is pulled live from public archives. Always do your due diligence and double-check contexts before you record—don't look goofy misusing a word on a track.
                         </p>
                     </div>
                 </section>
@@ -105,9 +108,7 @@
                 <!-- Advanced Multi-Syllable Metrical Mapping Dashboard -->
                 <section id="syllableMatrixSection" class="hidden bg-zinc-900 border border-zinc-800 rounded-xl p-6">
                     <h3 class="text-xs font-bold text-amber-500 uppercase tracking-wider mb-3">Multi-Syllable Structural Cadences</h3>
-                    <div id="syllableDashboard" class="space-y-3 text-xs">
-                        <!-- Loaded dynamically during search matrix parsing -->
-                    </div>
+                    <div id="syllableDashboard" class="space-y-3 text-xs"></div>
                 </section>
 
                 <!-- Smart Studio Workspace Notepad Component -->
@@ -123,7 +124,6 @@
                         <div id="lineSyllableGutter" class="w-10 bg-zinc-900/60 border-r border-zinc-800/80 pt-3 text-right pr-2 text-[11px] font-mono text-zinc-600 select-none space-y-[4.5px] leading-6">
                             <div>0</div>
                         </div>
-                        <!-- Active 16-Line Boundary Input Box Container -->
                         <textarea id="studioScratchpad" oninput="processNotepadMetrics()" placeholder="Type /intro, /verse, /hook, or /title to format blocks..."
                                   class="w-full bg-transparent p-3 text-sm font-mono text-zinc-100 placeholder-zinc-700 h-[384px] resize-none focus:outline-none leading-6 overflow-y-auto"></textarea>
                     </div>
@@ -139,9 +139,7 @@
                 <!-- Locally Cached Active Drafts Portfolio Section -->
                 <section class="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
                     <h3 class="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-3">Saved Studio Drafts</h3>
-                    <div id="draftsCollectionWrapper" class="space-y-2 max-h-[160px] overflow-y-auto text-xs pr-1">
-                        <!-- Loaded dynamically via LocalStorage parameters -->
-                    </div>
+                    <div id="draftsCollectionWrapper" class="space-y-2 max-h-[160px] overflow-y-auto text-xs pr-1"></div>
                 </section>
             </div>
 
@@ -165,9 +163,14 @@
 
     <!-- Script Logic Processing Engine Architecture -->
     <script>
-        let tapTimes = [];
-        let metronomeInterval = null;
-        let metronomeBpm = 0;
+        // Web Audio Synthesizer Metronome Global Context Variables
+        let audioCtx = null;
+        let isMetronomePlaying = false;
+        let nextClickTime = 0.0;
+        let beatCounter = 0;
+        let metronomeTimerId = null;
+        const lookaheadIntervalMs = 25.0; // How frequently to schedule audio events (ms)
+        const scheduleAheadTimeSec = 0.1; // How far ahead to schedule audio notes (sec)
 
         document.addEventListener("DOMContentLoaded", () => {
             const savedKey = localStorage.getItem("lyricist_gemini_key");
@@ -191,8 +194,6 @@
             document.getElementById("settingsPanel").classList.toggle("hidden");
         }
 
-        // Keep code clean - sources dropdown layout logic stripped since search grounding is dead
-
         function saveApiKey() {
             const key = document.getElementById("apiKeyInput").value.trim();
             if (!key) return;
@@ -201,34 +202,94 @@
             setTimeout(() => { toggleSettings(); }, 800);
         }
 
-        function tapTempo() {
-            const now = Date.now();
-            tapTimes.push(now);
-            if (tapTimes.length > 4) tapTimes.shift();
-
-            if (tapTimes.length > 1) {
-                let intervals = [];
-                for (let i = 1; i < tapTimes.length; i++) {
-                    intervals.push(tapTimes[i] - tapTimes[i-1]);
-                }
-                const averageInterval = intervals.reduce((a, b) => a + b) / intervals.length;
-                metronomeBpm = Math.round(60000 / averageInterval);
-                document.getElementById('bpmDisplay').innerText = `${metronomeBpm} BPM`;
-                startMetronomeVisualPulse();
+        // Web Audio Metronome Engine Logic
+        function initAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             }
         }
 
-        function startMetronomeVisualPulse() {
-            clearInterval(metronomeInterval);
-            const dot = document.getElementById('metronomeDot');
-            const pulseMs = (60000 / metronomeBpm);
+        function updateBpmValue() {
+            let bpm = parseInt(document.getElementById('bpmInput').value);
+            if (isNaN(bpm) || bpm < 40) document.getElementById('bpmInput').value = 40;
+            if (bpm > 250) document.getElementById('bpmInput').value = 250;
             
-            metronomeInterval = setInterval(() => {
-                dot.className = "w-2 h-2 rounded-full bg-amber-500 scale-125 shadow-[0_0_8px_#f59e0b]";
+            if (isMetronomePlaying && audioCtx) {
+                // Instantly realign next beat calculation timing parameters
+                nextClickTime = audioCtx.currentTime;
+            }
+        }
+
+        function toggleAudioMetronome() {
+            initAudioContext();
+            const btn = document.getElementById('metroPlayBtn');
+
+            if (!isMetronomePlaying) {
+                // Resume context if suspended by browser security policy rules
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                
+                isMetronomePlaying = true;
+                beatCounter = 0;
+                nextClickTime = audioCtx.currentTime + 0.05;
+                btn.innerText = "■ Stop";
+                btn.className = "bg-zinc-800 hover:bg-zinc-700 text-[11px] font-black uppercase tracking-wider px-3 py-1.5 rounded text-red-400 transition";
+                runSchedulerLoop();
+            } else {
+                isMetronomePlaying = false;
+                clearTimeout(metronomeTimerId);
+                btn.innerText = "▶ Start";
+                btn.className = "bg-zinc-800 hover:bg-zinc-700 text-[11px] font-black uppercase tracking-wider px-3 py-1.5 rounded text-emerald-400 transition";
+                document.getElementById('metronomeDot').className = "w-2 h-2 rounded-full bg-zinc-700 scale-100";
+            }
+        }
+
+        function runSchedulerLoop() {
+            while (nextClickTime < audioCtx.currentTime + scheduleAheadTimeSec) {
+                scheduleMetronomeClick(beatCounter, nextClickTime);
+                advanceNextBeatTime();
+            }
+            metronomeTimerId = setTimeout(runSchedulerLoop, lookaheadIntervalMs);
+        }
+
+        function advanceNextBeatTime() {
+            const bpm = parseInt(document.getElementById('bpmInput').value) || 90;
+            const secondsPerBeat = 60.0 / bpm;
+            nextClickTime += secondsPerBeat;
+            beatCounter = (beatCounter + 1) % 4; // Keeps track of 4/4 timing bars
+        }
+
+        function scheduleMetronomeClick(beat, time) {
+            // Synthesize electronic sound completely from code parameters
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            // High pitch accent click for Beat 1, lower woodblock click for Beats 2, 3, 4
+            osc.frequency.value = (beat === 0) ? 1000 : 800;
+
+            // Exponential decay volume envelope setup to create a crisp mechanical "click"
+            gainNode.gain.setValueAtTime(0.4, time);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, time + 0.02);
+
+            osc.start(time);
+            osc.stop(time + 0.03);
+
+            // Visual interface flash timing alignment callback
+            const delayMs = Math.max(0, (time - audioCtx.currentTime) * 1000);
+            setTimeout(() => {
+                if (!isMetronomePlaying) return;
+                const dot = document.getElementById('metronomeDot');
+                if (beat === 0) {
+                    dot.className = "w-2 h-2 rounded-full bg-amber-500 scale-125 shadow-[0_0_8px_#f59e0b]";
+                } else {
+                    dot.className = "w-2 h-2 rounded-full bg-zinc-300 scale-110";
+                }
                 setTimeout(() => {
-                    dot.className = "w-2 h-2 rounded-full bg-zinc-700 scale-100";
-                }, 150);
-            }, pulseMs);
+                    if (isMetronomePlaying) dot.className = "w-2 h-2 rounded-full bg-zinc-700 scale-100";
+                }, 60);
+            }, delayMs);
         }
 
         function countSyllablesInString(text) {
@@ -371,7 +432,6 @@
 
             runPhoneticEngine(word);
 
-            // System prompt rewritten to drop live scraping tools and maximize memory recall + smart fallback bars
             const systemInstruction = `You are a strict data-compiler tool for rap lyricists and songwriters. Your job is to pull exact definitions, slang knowledge, and verse structures from your massive internal memory training. Do not write generic conversational fluff. Keep explanations casual, sharp, and built for a lyricist's workspace.
             
 Prioritize contextual definitions and connotations to match this specific scene: "${activeScene}".
@@ -408,7 +468,6 @@ CRITICAL HYBRID FALLBACK RULE: If you cannot recall an exact, verified real-worl
 Then immediately provide a high-quality, realistic original 2-bar or 4-bar scheme of your own to showcase how a writer can pocket the word, along with the 1-sentence cadence breakdown.`;
             
             try {
-                // Using the standard, lightning-fast v1beta endpoint without grounding parameters
                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
